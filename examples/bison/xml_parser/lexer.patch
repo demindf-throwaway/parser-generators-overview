@@ -1,0 +1,11 @@
+--- lexer.cpp	2015-09-29 10:48:16.215455339 +0300
++++ lexer_fix.cpp	2015-09-29 10:47:39.119768148 +0300
+@@ -663,7 +663,7 @@
+ 		if ( yy_act != YY_END_OF_BUFFER && yy_rule_can_match_eol[yy_act] )
+ 			{
+ 			yy_size_t yyl;
+-			for ( yyl = 0; yyl < yyleng; ++yyl )
++			for ( yyl = 0; yyl < (yy_size_t)yyleng; ++yyl )
+ 				if ( yytext[yyl] == '\n' )
+ 					   
+     yylineno++;

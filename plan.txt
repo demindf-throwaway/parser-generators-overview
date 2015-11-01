@@ -1,0 +1,297 @@
+*
+    * Большую часть материала для доклада по функциональным парсерам можно сделать из тезиса Pure functional parsers - an advanced tutorial
+    * GCC и clang используют парсеры, написанные вручную!
+        http://blog.reverberate.org/2013/09/ll-and-lr-in-context-why-parsing-tools.html
+        http://stackoverflow.com/questions/6319086/are-gcc-and-clang-parsers-really-handwritten
+        и, кстати не только они, а огромное количество других языков
+    * Вопрос: как парсить языки типа Agda с помощью генератора парсеров? (Генератор генераторов парсеров, хаха!)
+    * К слову, Parsing Mixfix operators относится также к AlmostHaskell
+    
+
+DSL
+    * Подход D к DSL (compile-time вычисления)
+    * Подход Haskell/Agda к DSL (do нотация + перегружаемые операторы, пример ASM и Парсеров как Haskell DSL)
+    * http://blog.mattbierner.com/user-defined-operators-in-a-dynamic-scripting-language/
+    * http://stackoverflow.com/questions/7324402/parser-for-user-defined-infix-operators
+    * DSL - музыкальная нотация
+    * DSL - equational reasoning
+    * DSL - нотация списков в COQ
+
+
+
+Разбить на два доклада
+
+Цели:
+    * Постараться охватить как можно шире различные подходы к разбору искусственных языков
+        и попытать рассматреть проблемы, которые при этом возникают
+    * Помочь ответить на вопрос: "Какой инструмент мне использовать"
+        (95% случаев ответ будет: используй ANTLR)
+    * Дать приблизительную карту по различным инструментам 
+        Вот бы сюда кластеризацию и превратить их в настоящую карту!
+
+
+Функциональные парсеры
+Контексто-зависимые парсеры
+Layout-sensitive парсеры
+Типы принимаемых грамматик и алгоритмы
+Бенчмарк
+Языки, в которые есть генерация
+Подводные камни и трудности
+Лицензия? Opensource
+tl;dr  секция
+fuzzy parser
+backtracking?
+иерархия хомского
+примеры примитивных грамматик, которые не нужно парсить (xls?)
+регулярные выражения
+error reporting
+мы не затрагиваем вычислительную лингвистику, то есть парсинг естественных языков. Там тоже есть парсеры, грамматики, но это отдельная область с огромным количеством иследований в ней и своей спецификой.
+
+ликбез по:
+    ?левая рекурсия
+    shift-reduce conflict
+
+LL1, LL(k), LL(*), LR(k), LR(*), LALR(k), GLR, packrat, recursive descent, SLR,
+lecture notes: http://web.stanford.edu/class/archive/cs/cs143/cs143.1128/
+
+А также Earley, CYK
+    https://en.wikipedia.org/wiki/Earley_parser
+packrat парсер
+    http://broadcast.oreilly.com/2010/03/what-is-a-packrat-parser-what.html
+Презентация и код расшарить на локальном сервере и github
+Веселье на C++
+    http://blog.reverberate.org/2013/08/parsing-c-is-literally-undecidable.html
+    http://eli.thegreenplace.net/2007/11/24/the-context-sensitivity-of-cs-grammar#fn1
+Неоднозначность в грамматике
+    http://math.stackexchange.com/questions/22463/is-this-bnf-grammar-ambiguous
+    https://en.wikipedia.org/wiki/Chomsky%E2%80%93Sch%C3%BCtzenberger_enumeration_theorem
+
+C/C++
+    lex≈flex, yacc≈bison 
+JVM языки: Java, Scala(?), Kotlin(?)
+    ANTLR
+Python
+Perl
+    Рекурсивные регулярные выражения
+    ?
+PHP
+Haskell
+    Happy
+Prolog(?)
+D
+    https://github.com/PhilippeSigaud/Pegged/wiki
+    https://github.com/youxkei/ctpg
+Javascript, Coffescript и т.д.
+Lisp
+
+Julia (?)
+Rust(?)
+
+ParserCombinators (Wadler):
++:
+    * Легко определить новые комбинаторы, так что легче определить грамматику (например foldr, foldl и intersperse(?))
+    * Легко определить семантические действия напрямую, вместо использования каких-то промежуточных типов результата
+    * Тайп-чекер может находить ошибки типизации в грамматике, ей!
+    * Монадически типы парсеров позволяют на самом деле парсить не только контекстно-свободные грамматики
+    * Это всё происходит в уже знакомом языке
+-:
+    * Все комбинаторы парсеров реализуют один и тот же алгоритм: рекурсивный спуск. Это значит, что обязательно будут проблемы с левой рекурсией.
+    * Парсеры вынуждены в том или ином виде использовать backtracking (хотя есть что-то breadth first парсеры)
+
+Генераторы парсеров (например, Happy):
++:
+    * Можно также задавать грамматику с семантическими действиями
+    * Тайп-чекинг тоже может быть
+-:
+    * Нельзя определять собственные комбинаторы
+    * Нужно изучить новый язык
+
+
+Предположение (тезис): основные интересные вещи, которые мы хотим определять с помощью
+контекстно-свободных грамматик в искусственных языках это:
+    * Правильные скобочные последовательности
+    * Инфиксные, суфиксные и постфиксные операторы
+    * Идентификаторы (тривиально)
+    * Комбинации и конкатенеции предыдущих
+— Ну не совсем. Например, прямая и обратная польская нотации с натяжкой подходят под этот паттерн.
+
+Предположение: сейчас стараются придумывать контекстно-независимые языки, потому что иначе их сложно парсить.
+
+("мои мысли на эту тему следующие")
+Мысль: layout-sesitive языки легко парсить человеку, но трудно компьютеру. Причина этого в том, что человеку легко мыслить в терминах двумерной топологи, а вся теория формальных языков строится на одномерных строчках. Кстати, вообще то существует 2D парсинг, почему бы не использоавть его? Но я не видел ни одной реализации этой идеи.
+
+reveal.js, multiplex, pandoc(?) 
+
+parsing != matching
+LL (первая L - направление, вторая L порядок создания AST)
+
+План выступления:
+  Ликбез (15 минут):
+    * Формальная теория языков (10 мин)
+        * Алфавит, слово, язык (1 мин)
+        * Регулярный язык, конечный автомат, основная лемма, интуиция, сложность трансляции выражения в автомат примеры (числа, кратные трём) (5 мин)
+        * Контекстно-независимый язык, грамматика, стековая машина, лемма о накачке, интуиция, примеры (скобки, a^n b^n c^n, word word) (3 мин)
+        * Контекстно-зависимый язык ???
+        * Тьюринг-полный язык ??? (2 мин)
+        * Иерархия Хомского (1 мин)
+    * Практические парсеры (2 мин)
+        * Рекурсивный спуск, левая рекурсия
+        * LL(k), LL(*) языки
+    * Вопросы (3 мин)
+    * Литература: DragonBook
+
+    Не влезает, и возможно стоит включить в основной доклад:
+        * Парсинг произкольног грамматики, асимптотика. алгоритмы CYK, early
+        * Семантические действия. Атрибуты.
+            Syntax — determines valid form of program
+            • Semantics — behavior of valid program
+            • Convention is that syntax is what can be specified by CFG
+            • Doesn’t match intuition — some things that seem to be syntax
+            aren’t definable in CFG
+            Ex. number of arguments in function call
+            • In practice, anything that requires compiler to compare
+            constructs separated with other code, or to count items or
+            nested structures are semantics.
+        * LR(k), LALR, SLR, GLR, алгоритм, shift-reduce конфликты,reduce-reduce конфликты правая/левая рукурсия рекурсия (у правой растёт стек). Оригинальный взгляд на LR: shift - добавления листа к AST, reduce - добавление внутренней вершины
+        * Грамматики BNF, ABNF, PEG, другие?
+            http://matt.might.net/articles/grammars-bnf-ebnf/
+        * packrat парсеры
+        * известные соотношения между языками
+            http://cs.stackexchange.com/questions/43/language-theoretic-comparison-of-ll-and-lr-grammars
+        * Практически возникающие грамматики
+        * LL хороши для семантических действий, error reporting и пошаговый дебаг
+
+  Генераторы парсеров (1 час, вопросы по мере поступления) (Не вычислительная лингвистика)
+    * Мир через розовые очки
+        * Генераторы парсеров в широком смысле:
+            * Неинтересные генераторы: регулярные (стандартные) выражения, csv
+            * Генератор из внешней грамматики (Happy, bison, antlr)
+            * Комбинаторы парсеров (DSL) (parsec и прочие из haskell, возможно boost)
+            * Генератор из внутренней грамматики (примеры в haskell, compile-time D, может быть ещё?), в частности рекурсивные регулярные выражения
+            * Bonus: Смешанный подход: комбинаторы+анализ
+        * Примеры генераторов парсеров (лицензия, алгоритм, краткое описание, пример, +в идеале бенчмарк)
+        Note: Если суметь их сгруппировать по классам  почти-неотличимости, будет вообще замечательно
+            * +lex/flex + yacc/bison
+            * +ANTLR
+            * +lemon
+            * + boost::spirit
+            * bisonc++
+            * + Happy
+            * + Parsec а также вариации
+            * + Elkhound
+                http://scottmcpeak.com/elkhound/
+            * +Pegged
+                https://github.com/PhilippeSigaud/Pegged
+            * +PCRE
+            * Perl (Генераторы+регулярные выражения)
+            * Что насчёт Python?
+                * PLY?, pyparsing?, SPARK, YAPPS, BisonGen
+            * Что насчёт Javascript?
+            * Bonus: Prolog
+                http://www3.cs.stonybrook.edu/~warren/xsbbook/node10.html
+                http://www.cs.sfu.ca/~cameron/Teaching/383/DCG.html
+                http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.101.9739&rep=rep1&type=pdf
+            * Bonus: Julia (?)
+            * Bonus: Rust(?)
+            * Packrat
+            * GOLD Parser
+                не разрабатывается уже года 3. хм.
+        * Тонкие материи:
+            * Контекстная зависимость
+                Что делать?
+                * Даже генераторы контекстно-независимых парсеров иногда ограниченно поддерживают контекстно-зависимость
+                * 2-ух уровневые грамматики?
+                * Вручную писать парсер и делать ужасные велосипеды
+                * Монадические и апликативные(?) парсеры поддерживают такие дела https://byorgey.wordpress.com/2012/01/05/parsing-context-sensitive-languages-with-applicative/
+                * Есть какие-либо генераторы?
+                * Сделать парсинг многопроходовым (не сработает с обычными генераторами парсеров)
+            * Layout sensitivity
+                Кому вообще нужны {/} или begin/end ит.п.? - Парсеру
+                Примеры: Python, Haskell, Coffescript, Markdown, Hamlet language family, большинство сетевых протоколов: <length>:<content>
+            * Обработка ошибок
+            * Неоднозначные грамматики (неодназн)
+            * Backtracking и неодназначные грамматики (Generalized парсеры?)
+            * Incremental generation of parsers
+                Полезно для:
+                * Интерактивного редактирования грамматики
+                * Пользовательский синтаксис (Haskell, Agda, Coq)
+                Однако, видимо, почти нигде не используется?
+            * Ассоциативность операторов
+            * Производная парсеров (Yacc is dead)
+    * Суровая реальность, Пора съесть красную таблетку
+        * Парсеры in real world. примеры Gcc, Clang, Perl, ... (need moar)
+            http://blog.reverberate.org/2013/09/ll-and-lr-in-context-why-parsing-tools.html
+            http://programmers.stackexchange.com/questions/250256/do-modern-languages-still-use-parser-generators
+                Вроде все парсеры в GCC не используют генераторов, то есть вот эти:
+                C (gcc), C++ (g++), Objective-C, Objective-C++, Fortran (gfortran), Java (gcj), Ada (GNAT), Go (gccgo), Pascal (gpc),... Mercury, Modula-2, Modula-3, PL/I, D (gdc), and VHDL (ghdl)
+            Всё не так плохо: Elsa C++ парсер вроде справляется с C++ с помощью GLR:
+                http://stackoverflow.com/questions/6319086/are-gcc-and-clang-parsers-really-handwritten
+            http://blog.buguroo.com/why-parser-generator-tools-are-mostly-useless-in-static-analysis/
+            http://mortoray.com/2012/07/20/why-i-dont-use-a-parser-generator/
+        * Проблемы, возникающие, при использовании генераторов парсеров (контекстная зависимость (напр Agda с mixfix операторами, C++ parsing undecidable), неоднозначные грамматики вывод ошибок, Haskell с задаваемой ассоциативностью и приоритетом операторов)
+        * WYSIWYG vs WYSIWYGIYULRK
+        * Bonus: fuzzy parsers (просто упомянуть)
+        http://cs.stackexchange.com/questions/44889/can-an-earley-parser-be-made-into-a-fuzzy-parser-similar-to-the-levenshtein-auto
+    * Ссылки на всевозможную литературу: статьи, книги
+
+* Парсинг с производными:
+    Yacc is dead
+    Yacc is not dead: http://research.swtch.com/yaccalive
+    Yacc is dead: An update: http://matt.might.net/articles/parsing-with-derivatives/
+https://swtch.com/~rsc/regexp/regexp1.html
+Хорошая критика: http://matt.might.net/articles/parsing-with-derivatives/
+ «I'm against parsing tools that don't protect the user from surprises.
+    LALR(1) generators are out because they don't accept all grammars. »
+
+Действительно: LALR(1) парсеры лишают пользователя black-box feel.
+
+«Alan Perlis once remarked, "for every polynomial-time algorithm you have, there is an exponential algorithm that I would rather run." »
+
+hamlet languages:
+
+
+
+Hamlet (HTML)
+
+$doctype 5
+<html>
+    <head>
+        <title>#{pageTitle} - My Site
+        <link rel=stylesheet href=@{Stylesheet}>
+    <body>
+        <h1 .page-title>#{pageTitle}
+        <p>Here is a list of your friends:
+        $if null friends
+            <p>Sorry, I lied, you don't have any friends.
+        $else
+            <ul>
+                $forall Friend name age <- friends
+                    <li>#{name} (#{age} years old)
+        <footer>^{copyright}
+
+
+
+
+Lucius (CSS)
+
+section.blog {
+    padding: 1em;
+    border: 1px solid #000;
+    h1 {
+        color: #{headingColor};
+        background-image: url(@{MyBackgroundR});
+    }
+}
+
+
+
+Cassius (CSS)
+
+The following is equivalent to the Lucius example above.
+
+section.blog
+    padding: 1em
+    border: 1px solid #000
+    h1
+        color: #{headingColor}
+        background-image: url(@{MyBackgroundR})

@@ -1,0 +1,61 @@
+%require "3.0.4"
+%skeleton "lalr1.cc"
+%defines
+%define parser_class_name {expr_parser}
+%define api.token.constructor
+%define api.value.type variant
+%define api.namespace {yyexpr}
+%define parse.error verbose
+%locations
+
+// It's a shame that I have to store result as a parameter.
+%parse-param { expr_lexer& lexer} { double& result }
+
+%code requires {
+    class expr_lexer;
+}
+
+%code {
+    #include <cmath>
+    #include <string>
+
+    #include "lexer.h"
+
+    // It's a hacky way to make yylex to be a method of exprFlexLexer and avoid
+    // global functions. No guaranties that it will work in future versions.
+    #define yylex lexer.next_token
+}
+
+%token END 0
+%token <double> NUMBER
+%left '+' '-'
+%left '*' '/'
+%right '^'
+%precedence NEG
+
+%type <double> expr
+
+%%  /* Grammar rules */
+
+start
+    : %empty      { result = 0; }
+    | expr[value] { result = $value; }
+
+expr: expr[left] '+' expr[right] { $$ = $left + $right; }
+    | expr[left] '-' expr[right] { $$ = $left - $right; }
+    | expr[left] '*' expr[right] { $$ = $left * $right; }
+    | expr[left] '/' expr[right] { $$ = $left / $right; }
+    | expr[left] '^' expr[right] { $$ = std::pow($left, $right); }
+    | '-' expr[inner] %prec NEG  { $$ = -$inner; }
+    | '(' expr[inner] ')'        { $$ = $inner; }
+    | NUMBER                     { $$ = $NUMBER; }
+    ;
+
+%%  /* Epilogue */
+
+void yyexpr::expr_parser::error (location_type const& loc, const std::string& str)
+{
+    // К сожалению, даже нормально вернуть ошибку как исключение, или как
+    // возвращаемое значение в bison довольно кропотливо.
+    std::cerr << loc << ": " <<  str << '\n';
+}

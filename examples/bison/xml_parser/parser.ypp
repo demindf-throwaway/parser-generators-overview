@@ -1,0 +1,73 @@
+/*
+    По-хорошему нужно использовать автоматическую генерацию, чтобы сгенерировать
+    больше половины этого и соседнего файла. Но, чтобы не усложнять жизнь, тем
+    кто пытается разобраться в этих примерах, я этого не делаю.
+*/
+/*
+    На текущем bison (3.0.4) этот пример генерирует синтаксически некорректный
+    файл. Если исправить в нём ошибку, то программа вылетает с  SIGSEGV, когда 
+    семантический предикат не выполняется. Дебаггер показывает, что код, 
+    сгененрированный bison пытается собрать данные об ошибке и обращается по
+    индексу -1 в своём стеке. Скорей всего это баг в bison.
+*/
+
+%require "3.0.4"
+%skeleton "lalr1.cc"
+%defines
+%define parser_class_name {xml_parser}
+%define api.token.constructor
+%define api.value.type variant
+%define api.namespace {yyxml}
+%define parse.error verbose
+%locations
+
+// It's a shame that I have to store result as a parameter.
+%parse-param { xml_lexer& lexer} { std::string result }
+
+%code requires {
+    class xml_lexer;
+}
+
+%code {
+    #include <string>
+
+    #include "lexer.h"
+
+    #define yylex lexer.next_token
+}
+
+%token END 0
+%token <std::string> NAME
+%token <std::string> TEXT
+%token <std::string> STRING
+%token CLOSE_TAG "</"
+
+%%  /* Grammar rules */
+
+start: xmlTree { result = "OK"; };
+
+xmlTree: %empty | xmlTree xmlNode;
+
+/*
+    Выдаёт SIGSEGV, когда семантический предикат не выполняется. Вероятно, это
+    баг в bison.
+*/
+xmlNode
+    : TEXT
+    | '<' NAME[open_tag] attributes '>'
+         xmlTree
+      "</" NAME[close_tag] %?{ $open_tag == $close_tag } '>'
+    ;
+
+attributes: %empty | attributes attribute;
+
+attribute: NAME '=' STRING;
+
+%%  /* Epilogue */
+
+void yyxml::xml_parser::error (location_type const& loc, const std::string& str)
+{
+    // К сожалению, даже нормально вернуть ошибку как исключение, или как
+    // возвращаемое значение в bison довольно кропотливо.
+    std::cerr << loc << ": " <<  str << '\n';
+}
